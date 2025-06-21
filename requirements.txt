@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-dotenv
+langchain
+langchain-openai
+langchain-community
+chromadb
+psycopg2-binary # Para conexão com PostgreSQL
+stripe # Para integração com Stripe
+pydantic # Geralmente vem com FastAPI, mas bom explicitar
