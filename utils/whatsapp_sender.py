@@ -18,7 +18,7 @@ def send_whatsapp_message(to_phone_number: str, message_body: str) -> bool:
     # A Meta exige que o número não tenha o '+' inicial para o campo 'to'
     formatted_phone_number = to_phone_number.replace("+", "")
 
-    url = f"https://graph.facebook.com/v19.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/v23.0/{settings.WHATSAPP_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {settings.WHATSAPP_CLOUD_API_TOKEN}",
         "Content-Type": "application/json",
@@ -29,6 +29,12 @@ def send_whatsapp_message(to_phone_number: str, message_body: str) -> bool:
         "type": "text",
         "text": {"body": message_body},
     }
+
+    logging.info(f"DEBUG WHATSAPP SEND: Tentando enviar mensagem.")
+    logging.info(f"DEBUG WHATSAPP SEND: Para: '{formatted_phone_number}'")
+    logging.info(f"DEBUG WHATSAPP SEND: Conteúdo: '{message_body}'")
+    logging.info(f"DEBUG WHATSAPP SEND: Phone ID (da config): '{settings.WHATSAPP_PHONE_NUMBER_ID}'")
+    logging.info(f"DEBUG WHATSAPP SEND: Token (primeiros 5): '{settings.WHATSAPP_CLOUD_API_TOKEN[:5]}...'")
 
     try:
         response = requests.post(url, headers=headers, json=data)
