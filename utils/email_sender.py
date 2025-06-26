@@ -6,17 +6,13 @@ from email.mime.multipart import MIMEMultipart
 from app.config import settings
 import logging
 from typing import Optional
-from datetime import datetime, date, time # Adicionado 'time' aqui
+from datetime import datetime, date, time
 from email.utils import formataddr
 
 logging.basicConfig(level=logging.INFO)
 
 # --- Adicionando traduções para os e-mails ---
 EMAIL_SUBJECTS = {
-    'client_payment_link': {
-        'pt': 'Confirmação de Agendamento e Link de Pagamento - Yoga Kula',
-        'en': 'Appointment Confirmation & Payment Link - Yoga Kula'
-    },
     'company_pending_notification': {
         'pt': 'NOVO AGENDAMENTO (Pendente Pagamento) - Yoga Kula',
         'en': 'NEW APPOINTMENT (Payment Pending) - Yoga Kula'
@@ -25,13 +21,17 @@ EMAIL_SUBJECTS = {
         'pt': 'Confirmação de Agendamento e Pagamento - Yoga Kula',
         'en': 'Appointment & Payment Confirmed - Yoga Kula'
     },
+    'client_confirmation_generic': {
+        'pt': 'Confirmação de Pagamento - Yoga Kula',
+        'en': 'Payment Confirmation - Yoga Kula'
+    },
     'company_paid_notification': {
         'pt': 'CONFIRMAÇÃO: Novo Agendamento Pago - Yoga Kula',
         'en': 'CONFIRMED: New Paid Appointment - Yoga Kula'
     },
-    'payment_link_only': { # Para o caso de enviar só o link, sem detalhes completos de agendamento inicial
-        'pt': 'Seu Link de Pagamento - Yoga Kula',
-        'en': 'Your Payment Link - Yoga Kula'
+    'company_paid_notification_generic': {
+        'pt': 'CONFIRMAÇÃO: Novo Pagamento Processado - Yoga Kula',
+        'en': 'CONFIRMED: New Payment Processed - Yoga Kula'
     },
     'whatsapp_verification': {
         'pt': 'Código de Verificação WhatsApp - Yoga Kula',
@@ -40,381 +40,423 @@ EMAIL_SUBJECTS = {
     'password_reset': {
         'pt': 'Redefinição de Senha - Yoga Kula',
         'en': 'Password Reset - Yoga Kula'
-    }
-}
-
-EMAIL_BODIES_CLIENT_PAYMENT_LINK = {
-    'pt': {
-        'greeting': 'Olá {client_name},',
-        'intro': 'Obrigado por agendar sua aula de {class_type} no Yoga Kula!',
-        'details': 'Detalhes do agendamento:',
-        'class_type_label': 'Aula:',
-        'date_label': 'Data:',
-        'time_label': 'Hora:',
-        'phone_label': 'Telefone:',
-        'email_label': 'Email:',
-        'payment_info': 'Por favor, siga este link para completar o pagamento da sua aula:',
-        'payment_link_text': 'Pagar Aula',
-        'closing': 'Aguardamos a sua visita!',
-        'signature': 'Com gratidão,<br>A Equipa Yoga Kula'
     },
-    'en': {
-        'greeting': 'Hello {client_name},',
-        'intro': 'Thank you for booking your {class_type} class at Yoga Kula!',
-        'details': 'Appointment details:',
-        'class_type_label': 'Class:',
-        'date_label': 'Date:',
-        'time_label': 'Time:',
-        'phone_label': 'Phone:',
-        'email_label': 'Email:',
-        'payment_info': 'Please follow this link to complete the payment for your class:',
-        'payment_link_text': 'Pay for Class',
-        'closing': 'We look forward to seeing you!',
-        'signature': 'With gratitude,<br>The Yoga Kula Team'
-    }
 }
 
-EMAIL_BODIES_COMPANY_PENDING_NOTIFICATION = {
-    'pt': {
-        'intro': 'Um novo agendamento foi criado e está aguardando pagamento:',
-        'details': 'Detalhes do Agendamento:',
-        'client_name_label': 'Cliente:',
-        'class_type_label': 'Aula:',
-        'date_label': 'Data:',
-        'time_label': 'Hora:',
-        'phone_label': 'Telefone:',
-        'email_label': 'Email:',
-        'status': 'Status: Pendente Pagamento',
-        'payment_link_info': 'Link de Pagamento:',
-        'action': 'Aguarde a confirmação de pagamento para validar o agendamento.'
+EMAIL_TEMPLATES = {
+    'company_pending_notification': {
+        'pt': """
+Novo agendamento PENDENTE DE PAGAMENTO no Yoga Kula!
+
+Detalhes do Agendamento:
+Nome do Cliente: {client_name}
+Telefone: {client_phone}
+Email: {client_email}
+Tipo de Aula: {class_type}
+Data: {appointment_date}
+Hora: {appointment_time}
+
+Status: Pendente de Pagamento
+
+Por favor, verifique o status do pagamento.
+""",
+        'en': """
+New APPOINTMENT PENDING PAYMENT at Yoga Kula!
+
+Appointment Details:
+Client Name: {client_name}
+Phone: {client_phone}
+Email: {client_email}
+Class Type: {class_type}
+Date: {appointment_date}
+Time: {appointment_time}
+
+Status: Payment Pending
+
+Please check the payment status.
+"""
     },
-    'en': {
-        'intro': 'A new appointment has been created and is awaiting payment:',
-        'details': 'Appointment Details:',
-        'client_name_label': 'Client:',
-        'class_type_label': 'Class:',
-        'date_label': 'Date:',
-        'time_label': 'Time:',
-        'phone_label': 'Phone:',
-        'email_label': 'Email:',
-        'status': 'Status: Payment Pending',
-        'payment_link_info': 'Payment Link:',
-        'action': 'Await payment confirmation to validate the booking.'
-    }
-}
+    'client_confirmation': {
+        'pt': """
+🌟 Olá {client_name}! 🌟
 
-EMAIL_BODIES_CLIENT_CONFIRMATION = {
-    'pt': {
-        'greeting': 'Olá {client_name},',
-        'intro': 'Seu agendamento para a aula de {class_type} no Yoga Kula foi CONFIRMADO e o pagamento processado com sucesso!',
-        'details': 'Detalhes do agendamento:',
-        'class_type_label': 'Aula:',
-        'date_label': 'Data:',
-        'time_label': 'Hora:',
-        'payment_status': 'Status do Pagamento: Pago',
-        'closing': 'Aguardamos a sua visita!',
-        'signature': 'Com gratidão,<br>A Equipa Yoga Kula'
+🎉 PARABÉNS! O seu pagamento foi confirmado com sucesso! 🎉
+
+✨ A sua aula de {class_type} no Yoga Kula está oficialmente agendada para:
+📅 Data: {appointment_date}
+⏰ Hora: {appointment_time} (hora de Lisboa)
+
+🧘‍♀️ Prepare-se para uma experiência incrível de yoga! 
+
+📋 Lembre-se de trazer:
+• Roupa confortável
+• Tapete de yoga (se tiver)
+• Água
+• Boa disposição! 😊
+
+📍 Localização: Yoga Kula Studio
+🅿️ Estacionamento disponível
+
+📞 Se precisar de alguma coisa, não hesite em contactar-nos!
+
+Mal podemos esperar para o/a receber e partilhar esta jornada de bem-estar consigo! 
+
+Namastê 🙏
+A Equipa Yoga Kula
+""",
+        'en': """
+🌟 Hello {client_name}! 🌟
+
+🎉 CONGRATULATIONS! Your payment has been successfully confirmed! 🎉
+
+✨ Your {class_type} class at Yoga Kula is officially scheduled for:
+📅 Date: {appointment_date}
+⏰ Time: {appointment_time} (Lisbon time)
+
+🧘‍♀️ Get ready for an amazing yoga experience!
+
+📋 Remember to bring:
+• Comfortable clothing
+• Yoga mat (if you have one)
+• Water
+• Good vibes! 😊
+
+📍 Location: Yoga Kula Studio
+🅿️ Parking available
+
+📞 If you need anything, don't hesitate to contact us!
+
+We can't wait to welcome you and share this wellness journey with you!
+
+Namaste 🙏
+The Yoga Kula Team
+"""
     },
-    'en': {
-        'greeting': 'Hello {client_name},',
-        'intro': 'Your booking for the {class_type} class at Yoga Kula has been CONFIRMED and payment successfully processed!',
-        'details': 'Appointment details:',
-        'class_type_label': 'Class:',
-        'date_label': 'Date:',
-        'time_label': 'Time:',
-        'payment_status': 'Payment Status: Paid',
-        'closing': 'We look forward to seeing you!',
-        'signature': 'With gratitude,<br>The Yoga Kula Team'
-    }
-}
+    'client_confirmation_generic': {
+        'pt': """
+🌟 Olá {client_name}! 🌟
 
-EMAIL_BODIES_COMPANY_PAID_NOTIFICATION = {
-    'pt': {
-        'intro': 'Um agendamento foi PAGO e CONFIRMADO:',
-        'details': 'Detalhes do Agendamento:',
-        'client_name_label': 'Cliente:',
-        'class_type_label': 'Aula:',
-        'date_label': 'Data:',
-        'time_label': 'Hora:',
-        'phone_label': 'Telefone:',
-        'email_label': 'Email:',
-        'status': 'Status: Pago e Confirmado',
-        'payment_link_info': 'Link de Pagamento:',
-        'action': 'O agendamento está validado.'
+🎉 PARABÉNS! O seu pagamento foi confirmado com sucesso! 🎉
+
+✨ Obrigado por escolher o Yoga Kula para a sua jornada de bem-estar!
+
+🧘‍♀️ A sua compra de {item_type} foi processada com êxito.
+
+📅 Data do Pagamento: {purchase_date}
+⏰ Hora do Pagamento: {purchase_time}
+
+📞 Se tiver alguma dúvida sobre a sua compra, não hesite em contactar-nos!
+
+Mal podemos esperar para o/a receber no nosso estúdio e partilhar esta jornada de yoga consigo!
+
+Namastê 🙏
+A Equipa Yoga Kula
+""",
+        'en': """
+🌟 Hello {client_name}! 🌟
+
+🎉 CONGRATULATIONS! Your payment has been successfully confirmed! 🎉
+
+✨ Thank you for choosing Yoga Kula for your wellness journey!
+
+🧘‍♀️ Your purchase of {item_type} has been processed successfully.
+
+📅 Payment Date: {purchase_date}
+⏰ Payment Time: {purchase_time}
+
+📞 If you have any questions about your purchase, don't hesitate to contact us!
+
+We can't wait to welcome you to our studio and share this yoga journey with you!
+
+Namaste 🙏
+The Yoga Kula Team
+"""
     },
-    'en': {
-        'intro': 'An appointment has been PAID and CONFIRMED:',
-        'details': 'Appointment Details:',
-        'client_name_label': 'Client:',
-        'class_type_label': 'Class:',
-        'date_label': 'Date:',
-        'time_label': 'Time:',
-        'phone_label': 'Phone:',
-        'email_label': 'Email:',
-        'status': 'Status: Paid & Confirmed',
-        'payment_link_info': 'Payment Link:',
-        'action': 'The booking is validated.'
-    }
-}
+    'company_paid_notification': {
+        'pt': """
+CONFIRMADO: Novo Agendamento PAGO no Yoga Kula!
 
-EMAIL_BODIES_PAYMENT_LINK_ONLY = {
-    'pt': {
-        'greeting': 'Olá {client_name},',
-        'intro': 'Aqui está o link de pagamento solicitado:',
-        'payment_info': 'Pague aqui:',
-        'payment_link_text': 'Acessar Link de Pagamento',
-        'closing': 'Qualquer dúvida, estamos à disposição!',
-        'signature': 'Com gratidão,<br>A Equipa Yoga Kula'
+Detalhes do Agendamento:
+Nome do Cliente: {client_name}
+Email: {client_email}
+Tipo de Aula: {class_type}
+Data: {appointment_date}
+Hora: {appointment_time}
+
+Status: Pagamento Confirmado
+
+O pagamento para este agendamento foi processado com sucesso.
+""",
+        'en': """
+CONFIRMED: New PAID Appointment at Yoga Kula!
+
+Appointment Details:
+Client Name: {client_name}
+Email: {client_email}
+Class Type: {class_type}
+Date: {appointment_date}
+Time: {appointment_time}
+
+Status: Payment Confirmed
+
+The payment for this appointment has been successfully processed.
+"""
     },
-    'en': {
-        'greeting': 'Hello {client_name},',
-        'intro': 'Here is your requested payment link:',
-        'payment_info': 'Pay here:',
-        'payment_link_text': 'Access Payment Link',
-        'closing': 'If you have any questions, feel free to contact us!',
-        'signature': 'With gratitude,<br>The Yoga Kula Team'
-    }
-}
+    'company_paid_notification_generic': {
+        'pt': """
+CONFIRMADO: Novo Pagamento Processado no Yoga Kula!
 
-# Novo tipo de e-mail para verificação do WhatsApp
-EMAIL_BODIES_WHATSAPP_VERIFICATION = {
-    'pt': {
-        'greeting': 'Olá,',
-        'intro': 'Aqui está o seu código de verificação para o WhatsApp Business API do Yoga Kula:',
-        'code_label': 'Código de Verificação:',
-        'closing': 'Use este código para confirmar seu número no WhatsApp.',
-        'signature': 'Com gratidão,<br>A Equipa Yoga Kula'
+Detalhes do Pagamento:
+Nome do Cliente: {client_name}
+Email: {client_email}
+Tipo de Item: {item_type}
+Data do Pagamento: {purchase_date}
+Hora do Pagamento: {purchase_time}
+
+Status: Pagamento Confirmado
+
+O pagamento foi processado com sucesso.
+""",
+        'en': """
+CONFIRMED: New Payment Processed at Yoga Kula!
+
+Payment Details:
+Client Name: {client_name}
+Email: {client_email}
+Item Type: {item_type}
+Payment Date: {purchase_date}
+Payment Time: {purchase_time}
+
+Status: Payment Confirmed
+
+The payment has been successfully processed.
+"""
     },
-    'en': {
-        'greeting': 'Hello,',
-        'intro': 'Here is your verification code for Yoga Kula\'s WhatsApp Business API:',
-        'code_label': 'Verification Code:',
-        'closing': 'Use this code to confirm your number on WhatsApp.',
-        'signature': 'With gratitude,<br>The Yoga Kula Team'
-    }
-}
+    'whatsapp_verification': {
+        'pt': """
+Olá,
 
-# Novo tipo de e-mail para redefinição de senha (se aplicável)
-EMAIL_BODIES_PASSWORD_RESET = {
-    'pt': {
-        'greeting': 'Olá {client_name},',
-        'intro': 'Você solicitou a redefinição da sua senha. Clique no link abaixo para redefini-la:',
-        'reset_link_text': 'Redefinir Senha',
-        'closing': 'Se você não solicitou isso, por favor, ignore este e-mail.',
-        'signature': 'Com gratidão,<br>A Equipa Yoga Kula'
+O seu código de verificação para o WhatsApp do Yoga Kula é: {verification_code}.
+Este código é válido por {validity_minutes} minutos.
+
+Por favor, insira este código no chat para completar a verificação.
+""",
+        'en': """
+Hello,
+
+Your verification code for Yoga Kula's WhatsApp is: {verification_code}.
+This code is valid for {validity_minutes} minutes.
+
+Please enter this code in the chat to complete the verification.
+"""
     },
-    'en': {
-        'greeting': 'Hello {client_name},',
-        'intro': 'You requested a password reset. Click the link below to reset it:',
-        'reset_link_text': 'Reset Password',
-        'closing': 'If you did not request this, please ignore this email.',
-        'signature': 'With gratitude,<br>The Yoga Kula Team'
-    }
+    'password_reset': {
+        'pt': """
+Olá {client_name},
+
+Recebemos um pedido para redefinir a sua senha.
+Por favor, clique no link abaixo para criar uma nova senha:
+
+{reset_link}
+
+Se não solicitou esta redefinição, por favor ignore este email.
+
+Atenciosamente,
+A Equipa Yoga Kula
+""",
+        'en': """
+Hello {client_name},
+
+We received a request to reset your password.
+Please click the link below to create a new password:
+
+{reset_link}
+
+If you did not request a password reset, please ignore this email.
+
+Sincerely,
+The Yoga Kula Team
+"""
+    },
 }
 
-
-# Mapeamento de email_type para os corpos de e-mail
-EMAIL_BODY_MAP = {
-    'client_payment_link': EMAIL_BODIES_CLIENT_PAYMENT_LINK,
-    'company_pending_notification': EMAIL_BODIES_COMPANY_PENDING_NOTIFICATION,
-    'client_confirmation': EMAIL_BODIES_CLIENT_CONFIRMATION,
-    'company_paid_notification': EMAIL_BODIES_COMPANY_PAID_NOTIFICATION,
-    'payment_link_only': EMAIL_BODIES_PAYMENT_LINK_ONLY,
-    'whatsapp_verification': EMAIL_BODIES_WHATSAPP_VERIFICATION,
-    'password_reset': EMAIL_BODIES_PASSWORD_RESET
-}
 
 def send_email(
     to_email: str,
-    email_type: str, # Novo parâmetro para indicar o tipo de e-mail
+    email_type: str,
     appointment_details: dict,
-    payment_link: Optional[str] = None,
-    language: str = 'pt'
-) -> bool:
+    reset_link: Optional[str] = None,
+    language: str = 'pt'  # Default language is Portuguese
+):
     """
-    Envia e-mails com base em um tipo predefinido, buscando o assunto e o corpo
-    dos dicionários EMAIL_SUBJECTS e EMAIL_BODY_MAP.
+    Sends an email using the provided details.
 
     Args:
-        to_email (str): O endereço de e-mail do destinatário.
-        email_type (str): O tipo de e-mail a ser enviado (ex: 'client_payment_link', 'company_pending_notification', etc.).
-        appointment_details (dict): Dicionário com os detalhes do agendamento/cliente.
-        payment_link (Optional[str]): Link de pagamento (opcional, usado para e-mails de pagamento).
-        language (str): Idioma do e-mail ('pt' ou 'en').
+        to_email (str): Recipient's email address.
+        email_type (str): Type of email (e.g., 'client_confirmation', 'company_notification', 'company_pending_notification').
+        appointment_details (dict): Dictionary with details for the email content (e.g., client_name, class_type, appointment_date, appointment_time, client_phone, client_email).
+        reset_link (Optional[str]): The password reset link, if applicable.
+        language (str): Language for the email content ('pt' for Portuguese, 'en' for English).
     """
-    lang_code = language if language in ['pt', 'en'] else 'pt'
 
-    subject = EMAIL_SUBJECTS.get(email_type, {}).get(lang_code, 'Assunto Padrão')
-    email_body_template = EMAIL_BODY_MAP.get(email_type, {}).get(lang_code, {})
+    if not settings.EMAIL_HOST or not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+        logging.error(
+            "Configurações de e-mail incompletas. Verifique as variáveis de ambiente EMAIL_HOST, EMAIL_HOST_USER e EMAIL_HOST_PASSWORD.")
+        return
 
-    if not email_body_template:
-        logging.error(f"Modelo de e-mail para o tipo '{email_type}' no idioma '{lang_code}' não encontrado.")
-        return False
+    # Ensure language is one of the supported ones
+    if language not in ['pt', 'en']:
+        logging.warning(
+            f"Idioma '{language}' não suportado para e-mail. Usando 'pt' como padrão.")
+        language = 'pt'
 
-    # Formatar o corpo do e-mail
-    body_parts = []
-    # Saudações e introdução
-    if 'greeting' in email_body_template:
-        body_parts.append(email_body_template['greeting'].format(**appointment_details))
-    if 'intro' in email_body_template:
-        body_parts.append(email_body_template['intro'].format(**appointment_details))
+    subject = EMAIL_SUBJECTS.get(email_type, {}).get(
+        language, 'Assunto Padrão - Yoga Kula')
+    template = EMAIL_TEMPLATES.get(email_type, {}).get(language)
 
-    # Detalhes do agendamento (se aplicável)
-    if 'details' in email_body_template and email_type in ['client_payment_link', 'company_pending_notification', 'client_confirmation', 'company_paid_notification']:
-        body_parts.append(f"<p><strong>{email_body_template['details']}</strong></p>")
-        if 'class_type_label' in email_body_template and 'class_type' in appointment_details:
-            body_parts.append(f"<p>{email_body_template['class_type_label']} {appointment_details['class_type']}</p>")
-        if 'appointment_date_label' in email_body_template and 'appointment_date' in appointment_details: # Adicionado
-            body_parts.append(f"<p>{email_body_template['appointment_date_label']} {appointment_details['appointment_date'].strftime('%d-%m-%Y')}</p>")
-        elif 'date_label' in email_body_template and 'appointment_date' in appointment_details:
-             body_parts.append(f"<p>{email_body_template['date_label']} {appointment_details['appointment_date'].strftime('%d-%m-%Y')}</p>")
+    if not template:
+        logging.error(
+            f"Template de e-mail para '{email_type}' no idioma '{language}' não encontrado.")
+        return
 
-        if 'appointment_time_label' in email_body_template and 'appointment_time' in appointment_details: # Adicionado
-            body_parts.append(f"<p>{email_body_template['appointment_time_label']} {appointment_details['appointment_time'].strftime('%H:%M')}</p>")
-        elif 'time_label' in email_body_template and 'appointment_time' in appointment_details:
-            body_parts.append(f"<p>{email_body_template['time_label']} {appointment_details['appointment_time'].strftime('%H:%M')}</p>")
+    # Prepare data for template formatting, converting date/time objects to strings
+    formatted_details = appointment_details.copy()
+    if 'appointment_date' in formatted_details and isinstance(formatted_details['appointment_date'], (date, datetime)):
+        formatted_details['appointment_date'] = formatted_details['appointment_date'].strftime(
+            '%d-%m-%Y')
+    if 'appointment_time' in formatted_details and isinstance(formatted_details['appointment_time'], (time, datetime)):
+        formatted_details['appointment_time'] = formatted_details['appointment_time'].strftime(
+            '%H:%M')
 
-        if 'client_name_label' in email_body_template and 'client_name' in appointment_details: # Adicionado para empresa
-            body_parts.append(f"<p>{email_body_template['client_name_label']} {appointment_details['client_name']}</p>")
-        if 'phone_label' in email_body_template and 'client_phone' in appointment_details:
-            body_parts.append(f"<p>{email_body_template['phone_label']} {appointment_details['client_phone']}</p>")
-        if 'email_label' in email_body_template and 'client_email' in appointment_details:
-            body_parts.append(f"<p>{email_body_template['email_label']} {appointment_details['client_email']}</p>")
-        if 'status' in email_body_template: # Adicionado para empresa
-            body_parts.append(f"<p>{email_body_template['status']}</p>")
-        if 'action' in email_body_template: # Adicionado para empresa
-            body_parts.append(f"<p>{email_body_template['action']}</p>")
-
-
-    # Link de pagamento (se aplicável)
-    if payment_link and 'payment_info' in email_body_template:
-        body_parts.append(f"<p>{email_body_template['payment_info']}</p>")
-        body_parts.append(f"<p><a href=\"{payment_link}\">{email_body_template['payment_link_text']}</a></p>")
-    elif payment_link and 'reset_link_text' in email_body_template and email_type == 'password_reset':
-        body_parts.append(f"<p><a href=\"{payment_link}\">{email_body_template['reset_link_text']}</a></p>")
-
-
-    # Código de verificação (para WhatsApp, se aplicável)
-    if email_type == 'whatsapp_verification' and 'verification_code' in appointment_details:
-        body_parts.append(f"<p>{email_body_template['code_label']} <strong>{appointment_details['verification_code']}</strong></p>")
-
-    # Fechamento e Assinatura
-    if 'closing' in email_body_template:
-        body_parts.append(f"<p>{email_body_template['closing']}</p>")
-    if 'signature' in email_body_template:
-        body_parts.append(f"<p>{email_body_template['signature']}</p>")
-
-    body = "<br>".join(body_parts)
-
-    msg = MIMEMultipart("alternative")
-    msg['From'] = formataddr(('Yoga Kula', settings.EMAIL_SENDER)) # Exibe 'Yoga Kula' como remetente
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'html'))
+    # Add reset_link to formatted_details if it exists
+    if reset_link:
+        formatted_details['reset_link'] = reset_link
+    if 'validity_minutes' not in formatted_details and email_type == 'whatsapp_verification':
+        # Default for verification if not provided
+        formatted_details['validity_minutes'] = 10
 
     try:
-        with smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT) as server:
-            server.starttls()
-            server.login(settings.EMAIL_HOST_USER, settings.EMAIL_HOST_PASSWORD)
-            server.send_message(msg)
-        logging.info(f"E-mail enviado com sucesso para {to_email} ({email_type}) no idioma {lang_code}") # Atualizado log
-        return True
+        body = template.format(**formatted_details)
+    except KeyError as e:
+        logging.error(
+            f"Erro de formatação no template do email '{email_type}' para o idioma '{language}': Chave ausente - {e}. Detalhes disponíveis: {formatted_details.keys()}")
+        return
     except Exception as e:
-        logging.error(f"Erro ao enviar e-mail para {to_email} ({email_type}): {e}") # Atualizado log
-        return False
+        logging.error(
+            f"Erro inesperado ao formatar o template do email '{email_type}': {e}", exc_info=True)
+        return
 
-# Exemplo de uso
-if __name__ == "__main__":
-    from datetime import datetime, date, time
-    test_email = "seu.email@exemplo.com" # Mude para um e-mail real para testar
+    msg = MIMEMultipart()
+    msg['From'] = formataddr(('Yoga Kula Studio', settings.EMAIL_HOST_USER))
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
 
-    # Exemplo de uso em Português - Link de Pagamento Cliente
-    test_details_client_payment_link = {
-        'client_name': 'João Silva',
-        'class_type': 'Hatha Yoga',
-        'appointment_date': date(2025, 7, 10),
-        'appointment_time': time(18, 0),
+    try:
+        # ALTERAÇÃO CRÍTICA AQUI: Usar smtplib.SMTP e starttls()
+        # Conecta ao servidor SMTP (geralmente porta 587 para STARTTLS)
+        with smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT) as server:
+            server.ehlo()  # Pode ser necessário para alguns servidores
+            server.starttls()  # Inicia a criptografia TLS
+            server.ehlo()  # Pode ser necessário novamente após STARTTLS
+            server.login(settings.EMAIL_HOST_USER,
+                         settings.EMAIL_HOST_PASSWORD)
+            server.sendmail(settings.EMAIL_HOST_USER,
+                            to_email, msg.as_string())
+        logging.info(
+            f"Email '{email_type}' enviado com sucesso para {to_email}.")
+    except smtplib.SMTPException as e:
+        logging.error(
+            f"Falha no envio do email '{email_type}' para {to_email}: {e}")
+    except Exception as e:
+        logging.error(
+            f"Erro inesperado ao enviar email '{email_type}' para {to_email}: {e}", exc_info=True)
+
+
+if __name__ == '__main__':
+    # Apenas para testes locais
+    # Certifique-se de que as variáveis de ambiente no .env estão configuradas para o envio de e-mails de teste
+    # Ex: EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD
+
+    test_email = os.getenv("TEST_EMAIL_RECIPIENT",
+                           "seu.email.de.teste@exemplo.com")
+
+    # Exemplo de uso para cliente (notificação de agendamento pendente)
+    test_details_pending_notification = {
+        'client_name': 'Igor Raposo',
+        'class_type': 'Meditação',
+        'appointment_date': date(2025, 7, 23),
+        'appointment_time': time(14, 0),
         'client_phone': '+351912345678',
-        'client_email': 'joao@exemplo.com'
+        'client_email': 'igorraposo02@gmail.com',
     }
-    test_payment_link = "https://exemplo.com/pagamento"
-    print("\nTentando enviar e-mail de link de pagamento CLIENTE em Português...")
+    print("Tentando enviar e-mail de NOTIFICAÇÃO DE AGENDAMENTO PENDENTE em Português...")
     send_email(
         to_email=test_email,
-        email_type="client_payment_link",
-        appointment_details=test_details_client_payment_link,
-        payment_link=test_payment_link,
+        email_type="company_pending_notification",
+        appointment_details=test_details_pending_notification,
         language='pt'
     )
-
-    # Exemplo de uso em Português - Notificação Pendente Empresa
-    test_details_company_pending = {
-        'client_name': 'Maria Oliveira',
-        'class_type': 'Vinyasa Yoga',
-        'appointment_date': date(2025, 7, 11),
-        'appointment_time': time(9, 30),
-        'client_phone': '+351923456789',
-        'client_email': 'maria@exemplo.com'
-    }
-    print("\nTentando enviar e-mail de notificação PENDENTE EMPRESA em Português...")
+    print("\nTentando enviar e-mail de NOTIFICAÇÃO DE AGENDAMENTO PENDENTE em Inglês...")
     send_email(
-        to_email="geral.kulayogastudio@gmail.com",
+        to_email=test_email,
+        email_type="company_pending_notification",
+        appointment_details=test_details_pending_notification,
+        language='en'
+    )
+
+    # Exemplo de uso para notificação da empresa (pendente de pagamento)
+    test_details_company_pending = {
+        'client_name': 'Igor Raposo',
+        'client_phone': '+351912345678',
+        'client_email': 'igorraposo02@gmail.com',
+        'class_type': 'Vinyasa Yoga',
+        'appointment_date': date(2025, 7, 24),
+        'appointment_time': time(10, 30),
+    }
+    print("\nTentando enviar e-mail de NOTIFICAÇÃO DA EMPRESA (PENDENTE) em Português...")
+    send_email(
+        to_email=settings.YOGA_KULA_NOTIFICATION_EMAIL,
         email_type="company_pending_notification",
         appointment_details=test_details_company_pending,
-        payment_link="https://exemplo.com/link-pagamento-empresa", # Link pode ser o mesmo ou não
         language='pt'
     )
 
-    # Exemplo de uso em Português - Confirmação Cliente (PAGO)
-    test_details_client_confirm = {
-        'client_name': 'João Silva',
+    # Exemplo de uso para confirmação de pagamento do cliente
+    test_details_client_confirmed = {
+        'client_name': 'Maria Silva',
         'class_type': 'Hatha Yoga',
-        'appointment_date': date(2025, 7, 10),
-        'appointment_time': time(18, 0)
+        'appointment_date': date(2025, 7, 25),
+        'appointment_time': time(9, 0),
     }
-    print("\nTentando enviar e-mail de CONFIRMAÇÃO CLIENTE (PAGO) em Português...")
+    print("\nTentando enviar e-mail de CONFIRMAÇÃO DE PAGAMENTO (CLIENTE) em Português...")
     send_email(
         to_email=test_email,
         email_type="client_confirmation",
-        appointment_details=test_details_client_confirm,
+        appointment_details=test_details_client_confirmed,
         language='pt'
     )
 
-    # Exemplo de uso em Português - Confirmação Empresa (PAGO)
-    test_details_company_confirm = {
-        'client_name': 'João Silva',
-        'class_type': 'Hatha Yoga',
-        'appointment_date': date(2025, 7, 10),
+    # Exemplo de uso para notificação da empresa (pagamento confirmado)
+    test_details_company_paid = {
+        'client_name': 'João Nuno',
+        'client_email': 'joao.nuno@example.com',
+        'class_type': 'Ashtanga Yoga',
+        'appointment_date': date(2025, 7, 26),
         'appointment_time': time(18, 0),
-        'client_phone': '+351912345678',
-        'client_email': 'joao@exemplo.com'
     }
-    print("\nTentando enviar e-mail de CONFIRMAÇÃO EMPRESA (PAGO) em Português...")
+    print("\nTentando enviar e-mail de NOTIFICAÇÃO DA EMPRESA (PAGO) em Português...")
     send_email(
-        to_email="geral.kulayogastudio@gmail.com",
+        to_email=settings.YOGA_KULA_NOTIFICATION_EMAIL,
         email_type="company_paid_notification",
-        appointment_details=test_details_company_confirm,
-        payment_link="https://exemplo.com/link-pagamento-pago-empresa", # Opcional, pode ser o mesmo
-        language='pt'
-    )
-
-    # Exemplo de uso para enviar apenas link de pagamento (para packs/mensalidades)
-    test_details_payment_only = {
-        'client_name': 'Ana Costa',
-    }
-    print("\nTentando enviar e-mail de LINK DE PAGAMENTO APENAS em Português...")
-    send_email(
-        to_email=test_email,
-        email_type="payment_link_only",
-        appointment_details=test_details_payment_only,
-        payment_link="https://exemplo.com/link-pack-mensalidade",
+        appointment_details=test_details_company_paid,
         language='pt'
     )
 
     # Exemplo de uso para verificação de WhatsApp
     test_details_whatsapp_verification = {
         'verification_code': '123456',
+        'validity_minutes': 10  # Example of passing validity
     }
     print("\nTentando enviar e-mail de VERIFICAÇÃO WHATSAPP em Português...")
     send_email(
@@ -433,6 +475,6 @@ if __name__ == "__main__":
         to_email=test_email,
         email_type="password_reset",
         appointment_details=test_details_password_reset,
-        payment_link="https://exemplo.com/reset-password", # O link de redefinição de senha
+        reset_link="https://exemplo.com/redefinir-senha/token-aqui",
         language='pt'
     )

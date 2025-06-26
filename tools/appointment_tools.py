@@ -13,7 +13,7 @@ from database.db_utils import (
     create_appointment_in_db,
     get_appointment_by_id,
     get_appointments_for_date_time,
-    update_appointment_status
+    update_appointment_status_only
 )
 from database.models import Appointment, AppointmentStatus # Importar AppointmentStatus para definir o default
 
